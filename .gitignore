@@ -1,0 +1,12 @@
+bad_res copy.txt
+bad_res_plots/
+bad_res_plots_w_dupes/
+helix_example.pdf
+histogram_data.json
+k4toroid.sif
+makeMuonPlots.json
+plots/
+v0_noBIB.json
+v0_noBIB_250-1000.json
+v0_noBIB_50-250.json
+k4toroid.sif
