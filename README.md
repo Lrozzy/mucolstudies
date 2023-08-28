@@ -13,13 +13,13 @@ and then from inside the image, run:
 For makeMuonPlots.py and bad_res.py, you will need to use a different container:
 Create an apptainer in your desired directory:
 (NB: CARE, step 1 takes a while but only need to do it once)
-apptainer build k4toroid.sif docker://madbaron/k4test-ubuntu:latest 
+`apptainer build k4toroid.sif docker://madbaron/k4test-ubuntu:latest` 
 
 Run the apptainer in your desired directory (e.g /work/$USER instead of /home)
-apptainer run --no-home -B /collab/project/snowmass21/data/muonc:/data -B /home/$USER k4toroid.sif
+`apptainer run --no-home -B /collab/project/snowmass21/data/muonc:/data -B /home/$USER k4toroid.sif`
 
 Source setup script
-source /setup.sh
+`source /setup.sh`
 
 
 For a very simple version of reading an slcio file, see `makeMuonPlots_simple.py`. 
