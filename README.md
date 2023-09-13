@@ -24,7 +24,6 @@ Source setup script
 
 `source /setup.sh`
 
-
 For a very simple version of reading an slcio file, see `makeMuonPlots_simple.py`. 
 
 For a slightly more advanced version that handles making multiple histograms more elegantly, see `makeMuonPlots.py`. It may be helpful to look at these side-by-side if you're trying to learn what's going on here.
