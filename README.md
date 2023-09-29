@@ -1,6 +1,5 @@
 # mucolstudies
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 Collection of scripts for performing Muon Collider studies. These scripts assume you're inside the singularity image used in the [Fermilab Muon Collider tutorial](https://mcdwiki.docs.cern.ch/tutorials/fermilab2022/computing_setup/) which does some path mapping for you on the Snowmass cluster. In particular, you should run:
 
 `singularity run -B /collab/project/snowmass21/data/muonc:/data -B /work/$USER /cvmfs/unpacked.cern.ch/registry.hub.docker.com/infnpd/mucoll-ilc-framework\:1.6-centos8`
@@ -11,13 +10,25 @@ and then from inside the image, run:
 
 (FYI, putting these two in one shell script and sourcing it will not work; it won't execute the second command until you exit the singularity. You can also update to a newer release, which you can find [here](https://confluence.infn.it/display/muoncollider/Software), but I ran into trouble running with 1.7 with my current setup.)
 
+For makeMuonPlots.py and bad_res.py, you will need to use a different container:
+Create an apptainer in your desired directory:
+(NB: CARE, step 1 takes a while but only need to do it once)
+
+`apptainer build k4toroid.sif docker://madbaron/k4test-ubuntu:latest` 
+
+Run the apptainer in your desired directory (e.g /work/$USER instead of /home)
+
+`apptainer run --no-home -B /collab/project/snowmass21/data/muonc:/data -B /home/$USER k4toroid.sif`
+
+Source setup script
+
+`source /setup.sh`
+
 For a very simple version of reading an slcio file, see `makeMuonPlots_simple.py`. 
 
 For a slightly more advanced version that handles making multiple histograms more elegantly, see `makeMuonPlots.py`. It may be helpful to look at these side-by-side if you're trying to learn what's going on here.
 
 Both of these scripts will put plots in a `plots/` directory - make one if you don't have it already or it will crash.
-
-Don't look at `makeMuonPlots_k4hep.py` -- it doesn't work yet. I currently can only use RDataFrame to read these files; anything else results in a segfault. Looking into it!
 
 For the SLCIO files, to get a list of the colletions you can access, run `anajob <filename>` on one of your files.
 Use the `COLLECTION NAME` to access them. 
