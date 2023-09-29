@@ -38,14 +38,14 @@ xmax = 1000
 ymin = -1000
 ymax = 1000
 
-def getTransverseImpact(d0 = 0, phi, xref=0, yref=0):
+def getTransverseImpact(phi, d0 = 0, xref=0, yref=0):
     """ Given d0 and phi, figure out what x0 and y0 should be.
         to do this one needs to know the reference point, which is assumed to be the origin."""
     x0 = xref - d0 * np.sin(phi)
     y0 = yref + d0 * np.cos(phi)
     return x0, y0
 
-def getCurvature(qoverpt, bfield):
+def getCurvature(qoverpt, bfield = 5):
     """ Convert q/pt -> curvature (1/radius of curvature). Requires B field."""
     c = .29979 * bfield * qoverpt
     return c
@@ -66,7 +66,7 @@ def main():
     c = getCurvature(qoverpt, bfield)
 
     # run from 0 to half the arclength.
-    arclengths = np.linspace(0, math.pi*(1/c))
+    arclengths = np.linspace(0, np.pi*(1/c))
     
     # Get a list of the xcoords and ycoords.
     xcoords = getX(arclengths, x0, c, phi) * 1000
