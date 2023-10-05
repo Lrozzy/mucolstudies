@@ -16,7 +16,7 @@ max_events = -1
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun_pT_250_1000/*.slcio") 
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun_pT_0_50/*.slcio") 
 #fnames = glob.glob("/data/fmeloni/LegacyProductions/before29Jul23/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/gen_muonGun/recoBIB/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
@@ -129,7 +129,8 @@ pt_res_vs_pt = []
 pt_res = [] 
 
 # Truth matched 
-pt_match = []
+pt_match = [] #This is truth pt
+track_pt = [] #This is track pt
 eta_match = []
 theta_match = []
 phi_match = []
@@ -143,6 +144,7 @@ num_matched_tracks = 0
 with open("bad_res.txt", "w") as textfile:
     pass
 num_dupes = 0
+total_n_pfo_mu = 0
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 for f in fnames:
@@ -164,6 +166,13 @@ for f in fnames:
         has_pfo_mu = False
         my_pfo_mu = 0
 
+        ipfo_pt = []
+        ipfo_eta = []
+        ipfo_phi = []
+        ipfo_mu_pt = []
+        ipfo_mu_eta = []
+        ipfo_mu_phi = []
+
         id0_res_vs_pt = []
         id0_res_vs_eta = []
         iz0_res_vs_pt = []
@@ -174,6 +183,7 @@ for f in fnames:
         iz0_res = []
         ipt_res = []
         ipt_match = []
+        itrack_pt = []
         ieta_match = []
         itheta_match = []
         iphi_match = []
@@ -192,13 +202,6 @@ for f in fnames:
             hists["pfo_eta"].Fill(pfo_tlv.Eta())
             hists["pfo_phi"].Fill(pfo_tlv.Phi())
 
-            ipfo_pt = []
-            ipfo_eta = []
-            ipfo_phi = []
-            ipfo_mu_pt = []
-            ipfo_mu_eta = []
-            ipfo_mu_phi = []
-
             ipfo_pt.append(pfo_tlv.Perp())
             ipfo_eta.append(pfo_tlv.Eta())
             ipfo_phi.append(pfo_tlv.Phi())
@@ -214,7 +217,6 @@ for f in fnames:
                 n_pfo_mu += 1
                 has_pfo_mu = True
                 my_pfo_mu = pfo_tlv     # Storing this to use for matching in the next loop
-
         # Loop over the truth objects and fill histograms
         for mcp in mcpCollection:
             mcp_p = mcp.getMomentum()
@@ -228,20 +230,6 @@ for f in fnames:
             imcp_eta = []
             imcp_phi = []
 
-            imcp_mu_pt = []
-            imcp_mu_eta = []
-            imcp_mu_phi = []
-
-            imcp_mu_match_pt = []
-            imcp_mu_match_eta = []
-            imcp_mu_match_phi = []
-
-            id_mu_dpt = []
-            id_mu_drelpt = []
-            id_mu_deta = []
-            id_mu_dphi = []
-            ih2d_relpt = []
-
             imcp_pt.append(mcp_tlv.Perp())
             imcp_eta.append(mcp_tlv.Eta())
             imcp_phi.append(mcp_tlv.Phi())
@@ -251,11 +239,15 @@ for f in fnames:
                 hists["mcp_mu_eta"].Fill(mcp_tlv.Eta())
                 hists["mcp_mu_phi"].Fill(mcp_tlv.Phi())
 
+                imcp_mu_pt = []
+                imcp_mu_eta = []
+                imcp_mu_phi = []
+
                 imcp_mu_pt.append(mcp_tlv.Perp())
                 imcp_mu_eta.append(mcp_tlv.Eta())
                 imcp_mu_phi.append(mcp_tlv.Phi())
-                # print("Truth muon:", mcp_tlv.Perp(), mcp_tlv.Eta(), mcp_tlv.Phi())
                 n_mcp_mu += 1
+                # print("Truth pt, eta, phi:", mcp_tlv.Perp(), mcp_tlv.Eta(), mcp_tlv.Phi())
 
                 # For events in which a PFO mu was reconstructed, fill histograms that will
                 # be used for efficiency. Both numerator and denominator must be filled with truth values!
@@ -264,6 +256,16 @@ for f in fnames:
                     hists["mcp_mu_match_pt"].Fill(mcp_tlv.Perp())
                     hists["mcp_mu_match_eta"].Fill(mcp_tlv.Eta())
                     hists["mcp_mu_match_phi"].Fill(mcp_tlv.Phi())
+
+                    imcp_mu_match_pt = []
+                    imcp_mu_match_eta = []
+                    imcp_mu_match_phi = []
+
+                    id_mu_dpt = []
+                    id_mu_drelpt = []
+                    id_mu_deta = []
+                    id_mu_dphi = []
+                    ih2d_relpt = []
 
                     imcp_mu_match_pt.append(mcp_tlv.Perp())
                     imcp_mu_match_eta.append(mcp_tlv.Eta())
@@ -328,7 +330,7 @@ for f in fnames:
                 dr = mcp_tlv.DeltaR(track_tlv)
                 #print(j, dr)
                 if dr < min_dr:
-                    # print("Reco:", pt, eta, phi, nhitz)
+                    # print("Reco pt, eta, phi, nhits:", pt, eta, phi, max_hits)
                     # Fill 2D histograms
                     hists_2d["d0_res_vs_pt"].Fill(particle_pt, d0)
                     hists_2d["d0_res_vs_eta"].Fill(particle_eta, d0)
@@ -345,6 +347,7 @@ for f in fnames:
                     ipt_res_vs_eta.append([particle_eta, ptres])
                     ipt_res_vs_pt.append([particle_pt, ptres])
                     ipt_match.append(particle_pt)
+                    itrack_pt.append(pt)
                     ieta_match.append(particle_eta)
                     iphi_match.append(track.getPhi())
                     id0_res_match.append(d0)
@@ -359,6 +362,7 @@ for f in fnames:
                             textfile.write("Filename: " + str(f) + "\n")
                             textfile.write("Event: " + str(event.getEventNumber()) + "\n")
                             textfile.write("pt_res: " + str(ptres) + "\n")
+
                         
         #print("End of tracks")
         # This is here to check that we never reconstruct multiple muons
@@ -372,25 +376,6 @@ for f in fnames:
         hists["mcp_mu_match_n"].Fill(n_pfo_mu)
         i+=1
         if len(id0_res_vs_pt) > 0:
-            mcp_pt.append(imcp_pt)
-            mcp_eta.append(imcp_eta)
-            mcp_phi.append(imcp_phi)
-            pfo_pt.append(ipfo_pt)
-            pfo_eta.append(ipfo_eta)
-            pfo_phi.append(ipfo_phi)
-            pfo_mu_pt.append(ipfo_mu_pt)
-            pfo_mu_eta.append(ipfo_mu_eta)
-            pfo_mu_phi.append(ipfo_mu_phi)
-            mcp_mu_pt.append(imcp_mu_pt)
-            mcp_mu_eta.append(imcp_mu_eta)
-            mcp_mu_phi.append(imcp_mu_phi)
-            mcp_mu_match_pt.append(imcp_mu_match_pt)
-            mcp_mu_match_eta.append(imcp_mu_match_eta)
-            mcp_mu_match_phi.append(imcp_mu_match_phi)
-            d_mu_dpt.append(id_mu_dpt)
-            d_mu_drelpt.append(id_mu_drelpt)
-            d_mu_deta.append(id_mu_deta)
-            d_mu_dphi.append(id_mu_dphi)
             d0_res.append(id0_res)
             z0_res.append(iz0_res)
             nhits.append(inhits)
@@ -403,6 +388,7 @@ for f in fnames:
             pt_res_vs_pt.append(ipt_res_vs_pt)
             pt_res.append(ipt_res)
             pt_match.append(ipt_match)
+            track_pt.append(itrack_pt)
             eta_match.append(ieta_match)
             theta_match.append(itheta_match)
             phi_match.append(iphi_match)
@@ -410,6 +396,26 @@ for f in fnames:
             chi2.append(ichi2)
             d0_res_match.append(id0_res_match)
             z0_res_match.append(iz0_res_match)
+        mcp_pt.append(imcp_pt)
+        mcp_eta.append(imcp_eta)
+        mcp_phi.append(imcp_phi)
+        mcp_mu_pt.append(imcp_mu_pt)
+        mcp_mu_eta.append(imcp_mu_eta)
+        mcp_mu_phi.append(imcp_mu_phi)
+        pfo_pt.append(ipfo_pt)
+        pfo_eta.append(ipfo_eta)
+        pfo_phi.append(ipfo_phi)
+        pfo_mu_pt.append(ipfo_mu_pt)
+        pfo_mu_eta.append(ipfo_mu_eta)
+        pfo_mu_phi.append(ipfo_mu_phi)
+        if has_pfo_mu:    
+            mcp_mu_match_pt.append(imcp_mu_match_pt)
+            mcp_mu_match_eta.append(imcp_mu_match_eta)
+            mcp_mu_match_phi.append(imcp_mu_match_phi)
+            d_mu_dpt.append(id_mu_dpt)
+            d_mu_drelpt.append(id_mu_drelpt)
+            d_mu_deta.append(id_mu_deta)
+            d_mu_dphi.append(id_mu_dphi)
             h2d_relpt.append(ih2d_relpt)
         reader.close()
 
@@ -419,10 +425,13 @@ print("Ran over %i events."%i)
 print("Found:")
 print("\t%i MCPs"%hists["mcp_pt"].GetEntries())
 print("\t%i mu MCPs"%hists["mcp_mu_pt"].GetEntries())
+#print("\tSanity check mcp_mu_pt:", len(mcp_mu_pt))
 print("\t%i PFOs"%hists["pfo_pt"].GetEntries())
 print("\t%i mu PFOs"%hists["pfo_mu_pt"].GetEntries())
-print('\t%i matched tracks'%(num_matched_tracks))
+print('\t%i matched muon tracks'%(num_matched_tracks))
 print('\t%i duplicates eliminated'%num_dupes)
+
+
 
 # Make a list of all the data you want to save
 data_list = {}
@@ -457,6 +466,7 @@ data_list["pt_res_vs_eta"] = pt_res_vs_eta
 data_list["pt_res_vs_pt"] = pt_res_vs_pt
 data_list["pt_res"] = pt_res
 data_list["pt_match"] = pt_match
+data_list["track_pt"] = track_pt
 data_list["eta_match"] = eta_match
 data_list["theta_match"] = theta_match
 data_list["phi_match"] = phi_match
@@ -467,7 +477,7 @@ data_list["z0_res_match"] = z0_res_match
 data_list["h_2d_relpt"] = h2d_relpt
 
 # After the loop is finished, save the data_list to a .json file
-output_json = "v0_noBIB_250-1000.json"
+output_json = "v0_noBIB_0-50.json"
 with open(output_json, 'w') as fp:
     json.dump(data_list, fp)
 
