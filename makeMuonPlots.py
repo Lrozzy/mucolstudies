@@ -16,7 +16,7 @@ max_events = -1
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun_pT_0_50/*.slcio") 
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun_pT_250_1000/*.slcio") 
 #fnames = glob.glob("/data/fmeloni/LegacyProductions/before29Jul23/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/gen_muonGun/recoBIB/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
@@ -118,6 +118,7 @@ z0_res = [] #z0_res = z0 resolution
 z0_res_match = [] #z0_res_match = z0 resolution for matched muons
 
 nhits = []
+pixel_nhits = []
 pt_res_hits = []
 
 d0_res_vs_pt = [] 
@@ -131,7 +132,8 @@ pt_res = []
 # Truth matched 
 pt_match = [] #This is truth pt
 track_pt = [] #This is track pt
-eta_match = []
+track_eta = [] #This is track eta
+eta_match = [] #This is truth eta
 theta_match = []
 phi_match = []
 ndf = []
@@ -160,6 +162,20 @@ for f in fnames:
         pfoCollection = event.getCollection("PandoraPFOs")
         trackCollection = event.getCollection("SiTracks")
 
+        hit_collections = []
+        IBTrackerHits = event.getCollection('IBTrackerHits')
+        hit_collections.append(IBTrackerHits)
+        IETrackerHits = event.getCollection('IETrackerHits')
+        hit_collections.append(IETrackerHits)
+        OBTrackerHits = event.getCollection('OBTrackerHits')
+        hit_collections.append(OBTrackerHits)
+        OETrackerHits = event.getCollection('OETrackerHits')
+        hit_collections.append(OETrackerHits)
+        VBTrackerHits = event.getCollection('VBTrackerHits')
+        hit_collections.append(VBTrackerHits)
+        VETrackerHits = event.getCollection('VETrackerHits')
+        hit_collections.append(VETrackerHits)
+
         # Make counter variables
         n_mcp_mu = 0
         n_pfo_mu = 0
@@ -184,6 +200,7 @@ for f in fnames:
         ipt_res = []
         ipt_match = []
         itrack_pt = []
+        itrack_eta = []
         ieta_match = []
         itheta_match = []
         iphi_match = []
@@ -348,6 +365,7 @@ for f in fnames:
                     ipt_res_vs_pt.append([particle_pt, ptres])
                     ipt_match.append(particle_pt)
                     itrack_pt.append(pt)
+                    itrack_eta.append(eta)
                     ieta_match.append(particle_eta)
                     iphi_match.append(track.getPhi())
                     id0_res_match.append(d0)
@@ -363,6 +381,16 @@ for f in fnames:
                             textfile.write("Event: " + str(event.getEventNumber()) + "\n")
                             textfile.write("pt_res: " + str(ptres) + "\n")
 
+                    pixel_nhit = 0
+                    for hit in track.getTrackerHits():
+                        # now decode hits
+                            encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
+                            decoder = pyLCIO.UTIL.BitField64(encoding)
+                            cellID = int(hit.getCellID0())
+                            decoder.setValue(cellID)
+                            detector = decoder["system"].value()
+                            if detector == 1 or detector == 2:
+                                pixel_nhit += 1
                         
         #print("End of tracks")
         # This is here to check that we never reconstruct multiple muons
@@ -379,6 +407,7 @@ for f in fnames:
             d0_res.append(id0_res)
             z0_res.append(iz0_res)
             nhits.append(inhits)
+            pixel_nhits.append([pixel_nhit])
             #pt_res_hits.append(ipt_res_hits)
             d0_res_vs_pt.append(id0_res_vs_pt)
             d0_res_vs_eta.append(id0_res_vs_eta)
@@ -389,6 +418,7 @@ for f in fnames:
             pt_res.append(ipt_res)
             pt_match.append(ipt_match)
             track_pt.append(itrack_pt)
+            track_eta.append(itrack_eta)
             eta_match.append(ieta_match)
             theta_match.append(itheta_match)
             phi_match.append(iphi_match)
@@ -457,6 +487,7 @@ data_list["d_mu_deta"] = d_mu_deta
 data_list["d0_res"] = d0_res
 data_list["z0_res"] = z0_res
 data_list["nhits"] = nhits
+data_list["pixel_nhits"] = pixel_nhits
 data_list["pt_res_hits"] = pt_res_hits
 data_list["d0_res_vs_pt"] = d0_res_vs_pt
 data_list["d0_res_vs_eta"] = d0_res_vs_eta
@@ -467,6 +498,7 @@ data_list["pt_res_vs_pt"] = pt_res_vs_pt
 data_list["pt_res"] = pt_res
 data_list["pt_match"] = pt_match
 data_list["track_pt"] = track_pt
+data_list["track_eta"] = track_eta
 data_list["eta_match"] = eta_match
 data_list["theta_match"] = theta_match
 data_list["phi_match"] = phi_match
@@ -477,7 +509,7 @@ data_list["z0_res_match"] = z0_res_match
 data_list["h_2d_relpt"] = h2d_relpt
 
 # After the loop is finished, save the data_list to a .json file
-output_json = "v0_noBIB_0-50.json"
+output_json = "v0_noBIB_250-1000.json"
 with open(output_json, 'w') as fp:
     json.dump(data_list, fp)
 
