@@ -12,11 +12,11 @@ import numpy as np
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = -1
+max_events = 1000
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun_pT_250_1000/*.slcio") 
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/recoBIB/muonGun_pT_250_1000/*.slcio") 
 #fnames = glob.glob("/data/fmeloni/LegacyProductions/before29Jul23/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/gen_muonGun/recoBIB/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
@@ -147,15 +147,16 @@ with open("bad_res.txt", "w") as textfile:
     pass
 num_dupes = 0
 total_n_pfo_mu = 0
+reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
+reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks", "IBTrackerHits", "IETrackerHits", "OBTrackerHits", "OETrackerHits", "VBTrackerHits", "VETrackerHits"])
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 for f in fnames:
-    reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
+    if max_events > 0 and i >= max_events: break
     reader.open(f)
-
     for event in reader: 
         if max_events > 0 and i >= max_events: break
-        if i%100 == 0: print("Processing event %i."%i)
+        if i%10 == 0: print("Processing event %i."%i)
 
         # Get the collections we care about
         mcpCollection = event.getCollection("MCParticle")
@@ -447,7 +448,7 @@ for f in fnames:
             d_mu_deta.append(id_mu_deta)
             d_mu_dphi.append(id_mu_dphi)
             h2d_relpt.append(ih2d_relpt)
-        reader.close()
+    reader.close()
 
 # ############## MANIPULATE, PRETTIFY, AND SAVE HISTOGRAMS #############################
 print("\nSummary statistics:")
@@ -509,7 +510,7 @@ data_list["z0_res_match"] = z0_res_match
 data_list["h_2d_relpt"] = h2d_relpt
 
 # After the loop is finished, save the data_list to a .json file
-output_json = "v0_noBIB_250-1000.json"
+output_json = "v0_BIB_250-1000.json"
 with open(output_json, 'w') as fp:
     json.dump(data_list, fp)
 
