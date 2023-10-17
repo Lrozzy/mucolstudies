@@ -12,11 +12,11 @@ import numpy as np
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = 1000
+max_events = -1
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/recoBIB/muonGun_pT_250_1000/*.slcio") 
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun_pT_250_1000/*.slcio") 
 #fnames = glob.glob("/data/fmeloni/LegacyProductions/before29Jul23/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/gen_muonGun/recoBIB/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
@@ -265,7 +265,7 @@ for f in fnames:
                 imcp_mu_eta.append(mcp_tlv.Eta())
                 imcp_mu_phi.append(mcp_tlv.Phi())
                 n_mcp_mu += 1
-                # print("Truth pt, eta, phi:", mcp_tlv.Perp(), mcp_tlv.Eta(), mcp_tlv.Phi())
+                print("Truth pt, eta, phi:", mcp_tlv.Perp(), mcp_tlv.Eta(), mcp_tlv.Phi())
 
                 # For events in which a PFO mu was reconstructed, fill histograms that will
                 # be used for efficiency. Both numerator and denominator must be filled with truth values!
@@ -306,14 +306,26 @@ for f in fnames:
         max_hits = 0
         best_track = None
         for track in trackCollection:
-            nhitz = track.getTrackerHits().size()
-            if nhitz > max_hits:
-                max_hits = nhitz
-                best_track = track
-            counter += 1
-            if counter > 1:
-                num_dupes += 1
-                # print("More than one track in event! # of dupes:", num_dupes)
+            Bfield = 5 #T, 3.57 for legacy
+            theta = np.pi/2- np.arctan(track.getTanLambda())
+            phi = track.getPhi()
+            eta = -np.log(np.tan(theta/2))
+            pt  = 0.3 * Bfield / fabs(track.getOmega() * 1000.)
+            track_tlv = ROOT.TLorentzVector()
+            track_tlv.SetPtEtaPhiE(pt, eta, phi, 0)
+            dr = mcp_tlv.DeltaR(track_tlv)
+            min_dr = 0.005
+            if dr < min_dr: # Do dR check first, then do nhits check
+                nhitz = track.getTrackerHits().size()
+                if nhitz > max_hits:
+                    max_hits = nhitz
+                    best_track = track
+                counter += 1
+                if counter > 1:
+                    num_dupes += 1
+                    # print("More than one track in event! # of dupes:", num_dupes)
+                print("Reco pt, eta, phi, nhits:", pt, eta, phi, max_hits)
+        # print("# of reco for event (after dr matching):", counter)
         if best_track is not None:
             track = best_track
             d0 = track.getD0()
@@ -326,72 +338,58 @@ for f in fnames:
             id0_res.append(d0)
             iz0_res.append(z0)
             inhits.append(max_hits)
-            
-            Bfield = 5 #T, 3.57 for legacy
-            theta = np.pi/2- np.arctan(track.getTanLambda())
-            phi = track.getPhi()
-            eta = -np.log(np.tan(theta/2))
-            pt  = 0.3 * Bfield / fabs(track.getOmega() * 1000.)
 
-            min_dr = 0.005
             for j, particle_pt in enumerate(imcp_mu_pt):
                 particle_eta = imcp_mu_eta[j]
                 particle_phi = imcp_mu_phi[j]
                 mcp_tlv = ROOT.TLorentzVector()
                 mcp_tlv.SetPtEtaPhiE(particle_pt, particle_eta, particle_phi, 0)
-
-                track_tlv = ROOT.TLorentzVector()
-                 
                 #print(particle_pt, pt)
                 ptres = (particle_pt - pt) / particle_pt
-                track_tlv.SetPtEtaPhiE(pt, eta, track.getPhi(), 0)
-                dr = mcp_tlv.DeltaR(track_tlv)
                 #print(j, dr)
-                if dr < min_dr:
-                    # print("Reco pt, eta, phi, nhits:", pt, eta, phi, max_hits)
-                    # Fill 2D histograms
-                    hists_2d["d0_res_vs_pt"].Fill(particle_pt, d0)
-                    hists_2d["d0_res_vs_eta"].Fill(particle_eta, d0)
-                    hists_2d["z0_res_vs_pt"].Fill(particle_pt, z0)
-                    hists_2d["z0_res_vs_eta"].Fill(particle_eta, z0)
-                    hists_2d["pt_res_vs_eta"].Fill(particle_eta, ptres)
-                    hists_2d["pt_res_vs_pt"].Fill(particle_pt, ptres)
-                    num_matched_tracks += 1
+                # Fill 2D histograms
+                hists_2d["d0_res_vs_pt"].Fill(particle_pt, d0)
+                hists_2d["d0_res_vs_eta"].Fill(particle_eta, d0)
+                hists_2d["z0_res_vs_pt"].Fill(particle_pt, z0)
+                hists_2d["z0_res_vs_eta"].Fill(particle_eta, z0)
+                hists_2d["pt_res_vs_eta"].Fill(particle_eta, ptres)
+                hists_2d["pt_res_vs_pt"].Fill(particle_pt, ptres)
+                num_matched_tracks += 1
 
-                    id0_res_vs_pt.append([particle_pt, d0])
-                    id0_res_vs_eta.append([particle_eta, d0])
-                    iz0_res_vs_pt.append([particle_pt, z0])
-                    iz0_res_vs_eta.append([particle_eta, z0])
-                    ipt_res_vs_eta.append([particle_eta, ptres])
-                    ipt_res_vs_pt.append([particle_pt, ptres])
-                    ipt_match.append(particle_pt)
-                    itrack_pt.append(pt)
-                    itrack_eta.append(eta)
-                    ieta_match.append(particle_eta)
-                    iphi_match.append(track.getPhi())
-                    id0_res_match.append(d0)
-                    iz0_res_match.append(z0)
-                    ipt_res.append(ptres)
-                    #itheta_match.append(mcp_mu_theta[j])
-                    indf.append(track.getNdf())
-                    ichi2.append(track.getChi2())
-                
-                    if np.abs(ptres) > 25:
-                        with open("bad_res.txt", "a") as textfile:
-                            textfile.write("Filename: " + str(f) + "\n")
-                            textfile.write("Event: " + str(event.getEventNumber()) + "\n")
-                            textfile.write("pt_res: " + str(ptres) + "\n")
+                id0_res_vs_pt.append([particle_pt, d0])
+                id0_res_vs_eta.append([particle_eta, d0])
+                iz0_res_vs_pt.append([particle_pt, z0])
+                iz0_res_vs_eta.append([particle_eta, z0])
+                ipt_res_vs_eta.append([particle_eta, ptres])
+                ipt_res_vs_pt.append([particle_pt, ptres])
+                ipt_match.append(particle_pt)
+                itrack_pt.append(pt)
+                itrack_eta.append(eta)
+                ieta_match.append(particle_eta)
+                iphi_match.append(track.getPhi())
+                id0_res_match.append(d0)
+                iz0_res_match.append(z0)
+                ipt_res.append(ptres)
+                #itheta_match.append(mcp_mu_theta[j])
+                indf.append(track.getNdf())
+                ichi2.append(track.getChi2())
+            
+                if np.abs(ptres) > 25:
+                    with open("bad_res.txt", "a") as textfile:
+                        textfile.write("Filename: " + str(f) + "\n")
+                        textfile.write("Event: " + str(event.getEventNumber()) + "\n")
+                        textfile.write("pt_res: " + str(ptres) + "\n")
 
-                    pixel_nhit = 0
-                    for hit in track.getTrackerHits():
-                        # now decode hits
-                            encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
-                            decoder = pyLCIO.UTIL.BitField64(encoding)
-                            cellID = int(hit.getCellID0())
-                            decoder.setValue(cellID)
-                            detector = decoder["system"].value()
-                            if detector == 1 or detector == 2:
-                                pixel_nhit += 1
+                pixel_nhit = 0
+                for hit in track.getTrackerHits():
+                    # now decode hits
+                        encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
+                        decoder = pyLCIO.UTIL.BitField64(encoding)
+                        cellID = int(hit.getCellID0())
+                        decoder.setValue(cellID)
+                        detector = decoder["system"].value()
+                        if detector == 1 or detector == 2:
+                            pixel_nhit += 1
                         
         #print("End of tracks")
         # This is here to check that we never reconstruct multiple muons
@@ -510,7 +508,7 @@ data_list["z0_res_match"] = z0_res_match
 data_list["h_2d_relpt"] = h2d_relpt
 
 # After the loop is finished, save the data_list to a .json file
-output_json = "v0_BIB_250-1000.json"
+output_json = "v0_noBIB_250-1000.json"
 with open(output_json, 'w') as fp:
     json.dump(data_list, fp)
 
