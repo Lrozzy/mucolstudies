@@ -177,7 +177,6 @@ fake_pixel_nhits = []
 
 h2d_relpt = [] #pfo muon pt resolution vs pt
 
-
 with open("bad_res.txt", "w") as textfile:
     pass
 i = 0
@@ -191,7 +190,7 @@ reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks", "SiTrack
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 for f in fnames:
-    if f == "muonGun_pT_1000_5000.slcio":
+    if f == "/data/fmeloni/DataMuC_MuColl10_v0A/reco/merged/muonGun_pT_1000_5000.slcio":
         continue
     if max_events > 0 and i >= max_events: break
     reader.open(f)
@@ -256,7 +255,7 @@ for f in fnames:
         id0_res_match = []
         iz0_res_match = []
         inhits = []
-        
+
         # Fake Tracks
         ifake_pt = []
         ifake_theta = []
@@ -292,6 +291,7 @@ for f in fnames:
                 n_pfo_mu += 1
                 has_pfo_mu = True
                 my_pfo_mu = pfo_tlv     # Storing this to use for matching in the next loop
+
         # Loop over the truth objects and fill histograms
         for mcp in mcpCollection:
             mcp_p = mcp.getMomentum()
@@ -332,7 +332,7 @@ for f in fnames:
                     n_mcp_mu += 1
                     # print("Truth pt, eta, phi:", mcp_tlv.Perp(), mcp_tlv.Eta(), mcp_tlv.Phi())
 
-                    if (mcp_tlv.Perp() > 0.5) & (mcp_tlv.Perp() <= 1000): # Remove ultra-low pt tracks    
+                    if (mcp_tlv.Perp() > 0.5): # Remove ultra-low pt tracks    
                         tracks = relation.getRelatedToObjects(mcp)
                         for track in tracks:
                             Bfield = 5 #T, 3.57 for legacy
@@ -580,15 +580,17 @@ for f in fnames:
             d_mu_deta.append(id_mu_deta)
             d_mu_dphi.append(id_mu_dphi)
             h2d_relpt.append(ih2d_relpt)
-        fake_pt.append(ifake_pt)
-        fake_theta.append(ifake_theta)
-        fake_eta.append(ifake_eta)
-        fake_phi.append(ifake_phi)
-        fake_d0.append(ifake_d0)
-        fake_z0.append(ifake_z0)
-        fake_ndf.append(ifake_ndf)
-        fake_chi2.append(ifake_chi2)
-        fake_nhits.append(ifake_nhits)
+        if len(ifake_pt) > 0:
+            fake_pt.append(ifake_pt)
+            fake_theta.append(ifake_theta)
+            fake_eta.append(ifake_eta)
+            fake_phi.append(ifake_phi)
+            fake_d0.append(ifake_d0)
+            fake_z0.append(ifake_z0)
+            fake_ndf.append(ifake_ndf)
+            fake_chi2.append(ifake_chi2)
+            fake_nhits.append(ifake_nhits)
+            # print(fake_pt)
     reader.close()
 
 # ############## MANIPULATE, PRETTIFY, AND SAVE HISTOGRAMS #############################
@@ -604,6 +606,7 @@ print('\t%i matched muon tracks'%(num_matched_tracks))
 print('\t%i duplicates eliminated'%num_dupes)
 print('\t%i hard radiations discarded'%hard_rad_discard)
 print('\t%i fake tracks'%num_fake_tracks)
+# print('\t%i GeV'%np.max(mcp_mu_pt))
 
 
 # Make a list of all the data you want to save
