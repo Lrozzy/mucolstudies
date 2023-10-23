@@ -205,7 +205,7 @@ for f in fnames:
 
         mcpCollection = event.getCollection("MCParticle")
         pfoCollection = event.getCollection("PandoraPFOs")
-        trackCollection = event.getCollection("SiTracks")
+        trackCollection = event.getCollection("SiTracks_Refitted")
 
         hit_collections = []
         IBTrackerHits = event.getCollection('IBTrackerHits')
@@ -447,6 +447,7 @@ for f in fnames:
                         detector = decoder["system"].value()
                         if detector == 1 or detector == 2:
                             fake_pixel_nhit += 1
+                fake_pixel_nhits.append(fake_pixel_nhit)
                 num_fake_tracks += 1
 
             min_dr = 0.005
@@ -588,7 +589,6 @@ for f in fnames:
         fake_ndf.append(ifake_ndf)
         fake_chi2.append(ifake_chi2)
         fake_nhits.append(ifake_nhits)
-        fake_pixel_nhits.append(fake_pixel_nhit)
     reader.close()
 
 # ############## MANIPULATE, PRETTIFY, AND SAVE HISTOGRAMS #############################
@@ -597,9 +597,9 @@ print("Ran over %i events."%i)
 print("Found:")
 print("\t%i MCPs"%hists["mcp_pt"].GetEntries())
 print("\t%i mu MCPs"%hists["mcp_mu_pt"].GetEntries())
-#print("\tSanity check mcp_mu_pt:", len(mcp_mu_pt))
-print("\t%i PFOs"%hists["pfo_pt"].GetEntries())
-print("\t%i mu PFOs"%hists["pfo_mu_pt"].GetEntries())
+# print("\tSanity check mcp_mu_pt:", len(mcp_mu_pt))
+# print("\t%i PFOs"%hists["pfo_pt"].GetEntries())
+# print("\t%i mu PFOs"%hists["pfo_mu_pt"].GetEntries())
 print('\t%i matched muon tracks'%(num_matched_tracks))
 print('\t%i duplicates eliminated'%num_dupes)
 print('\t%i hard radiations discarded'%hard_rad_discard)
