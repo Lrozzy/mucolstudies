@@ -12,11 +12,11 @@ import numpy as np
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = 1000
+max_events = -1
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
-fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/muonGun_pT_250_1000/*.slcio") 
+fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/reco/merged/*.slcio") 
 #fnames = glob.glob("/data/fmeloni/LegacyProductions/before29Jul23/DataMuC_MuColl_v1/muonGun/reco/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/gen_muonGun/recoBIB/*.slcio")
 #fnames = glob.glob("/data/fmeloni/DataMuC_MuColl10_v0A/muonGun_1000/recoBIB/*.slcio")
@@ -86,6 +86,15 @@ for obj in ["d_mu"]:
 # pT resolution vs. pT plot.
 h_2d_relpt = ROOT.TH2F("h_2d_relpt", "h_2d_relpt", 20, 0, 1000, 500, -0.5, 0.5)
 
+def check_hard_radiation(mcp, fractional_threshold):
+    had_hard_rad = False
+    daughters = mcp.getDaughters() 
+    for d in daughters:
+        if d.getPDG() == 22:
+            if d.getEnergy() > fractional_threshold*mcp.getEnergy():
+                had_hard_rad = True   
+    return had_hard_rad
+
 # Create empty lists for each variable
 mcp_pt = [] #mcp = MCParticle (truth)
 mcp_phi = []
@@ -111,7 +120,7 @@ d_mu_drelpt = []
 d_mu_dphi = []
 d_mu_deta = []
 
-#TRACK
+# TRACK
 d0_res = [] #d0_res = d0 resolution
 d0_res_match = [] #d0_res_match = d0 resolution for matched muons
 z0_res = [] #z0_res = z0 resolution
@@ -154,19 +163,36 @@ LC_nhits = []
 LC_pixel_nhits = []
 LC_pt_res = [] 
 
+# Fake Tracks
+fake_pt = []
+fake_theta = []
+fake_eta = []
+fake_phi = []
+fake_d0 = []
+fake_z0 = []
+fake_ndf = []
+fake_chi2 = []
+fake_nhits = []
+fake_pixel_nhits = []
+
 h2d_relpt = [] #pfo muon pt resolution vs pt
 
-i = 0
-num_matched_tracks = 0
+
 with open("bad_res.txt", "w") as textfile:
     pass
+i = 0
+num_matched_tracks = 0
 num_dupes = 0
+num_fake_tracks = 0
+hard_rad_discard = 0
 total_n_pfo_mu = 0
 reader = pyLCIO.IOIMPL.LCFactory.getInstance().createLCReader()
-reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks", "MCParticle_SiTracks_Refitted", "IBTrackerHits", "IETrackerHits", "OBTrackerHits", "OETrackerHits", "VBTrackerHits", "VETrackerHits"])
+reader.setReadCollectionNames(["MCParticle", "PandoraPFOs", "SiTracks", "SiTracks_Refitted", "MCParticle_SiTracks_Refitted", "IBTrackerHits", "IETrackerHits", "OBTrackerHits", "OETrackerHits", "VBTrackerHits", "VETrackerHits"])
 # ############## LOOP OVER EVENTS AND FILL HISTOGRAMS  #############################
 # Loop over events
 for f in fnames:
+    if f == "muonGun_pT_1000_5000.slcio":
+        continue
     if max_events > 0 and i >= max_events: break
     reader.open(f)
     for event in reader: 
@@ -201,6 +227,7 @@ for f in fnames:
         has_pfo_mu = False
         my_pfo_mu = 0
 
+        # Pfos 
         ipfo_pt = []
         ipfo_eta = []
         ipfo_phi = []
@@ -208,6 +235,7 @@ for f in fnames:
         ipfo_mu_eta = []
         ipfo_mu_phi = []
 
+        # Tracks
         id0_res_vs_pt = []
         id0_res_vs_eta = []
         iz0_res_vs_pt = []
@@ -228,6 +256,17 @@ for f in fnames:
         id0_res_match = []
         iz0_res_match = []
         inhits = []
+        
+        # Fake Tracks
+        ifake_pt = []
+        ifake_theta = []
+        ifake_eta = []
+        ifake_phi = []
+        ifake_d0 = []
+        ifake_z0 = []
+        ifake_ndf = []
+        ifake_chi2 = []
+        ifake_nhits = []
 
         # Loop over the reconstructed objects and fill histograms
         for pfo in pfoCollection:
@@ -271,98 +310,105 @@ for f in fnames:
             imcp_phi.append(mcp_tlv.Phi())
 
             if abs(mcp.getPDG())==13 and mcp.getGeneratorStatus()==1:
-                hists["mcp_mu_pt"].Fill(mcp_tlv.Perp())
-                hists["mcp_mu_eta"].Fill(mcp_tlv.Eta())
-                hists["mcp_mu_phi"].Fill(mcp_tlv.Phi())
+                # Check if the muon radiated significant energy
+                hard_rad = check_hard_radiation(mcp, 0.01)
+                
+                if hard_rad:
+                    #print("radiated significant energy, discarding")
+                    hard_rad_discard += 1
 
-                imcp_mu_pt = []
-                imcp_mu_eta = []
-                imcp_mu_phi = []
+                else:
+                    hists["mcp_mu_pt"].Fill(mcp_tlv.Perp())
+                    hists["mcp_mu_eta"].Fill(mcp_tlv.Eta())
+                    hists["mcp_mu_phi"].Fill(mcp_tlv.Phi())
 
-                imcp_mu_pt.append(mcp_tlv.Perp())
-                imcp_mu_eta.append(mcp_tlv.Eta())
-                imcp_mu_phi.append(mcp_tlv.Phi())
-                n_mcp_mu += 1
-                # print("Truth pt, eta, phi:", mcp_tlv.Perp(), mcp_tlv.Eta(), mcp_tlv.Phi())
+                    imcp_mu_pt = []
+                    imcp_mu_eta = []
+                    imcp_mu_phi = []
 
-                if mcp_tlv.Perp() > 0.5: # Remove ultra-low pt tracks    
-                    tracks = relation.getRelatedToObjects(mcp)
-                    for track in tracks:
-                        Bfield = 5 #T, 3.57 for legacy
-                        theta = np.pi/2- np.arctan(track.getTanLambda())
-                        phi = track.getPhi()
-                        eta = -np.log(np.tan(theta/2))
-                        pt  = 0.3 * Bfield / fabs(track.getOmega() * 1000.)
-                        track_tlv = ROOT.TLorentzVector()
-                        track_tlv.SetPtEtaPhiE(pt, eta, phi, 0)
-                        dr = mcp_tlv.DeltaR(track_tlv)
-                        nhitz = track.getTrackerHits().size()
-                        ptres = (mcp_tlv.Perp() - pt) / mcp_tlv.Perp()
-                        d0 = track.getD0()
-                        z0 = track.getZ0()
-                        LC_pt_match.append(imcp_mu_pt)
-                        LC_track_pt.append([pt])
-                        LC_track_eta.append([eta])
-                        LC_eta_match.append(imcp_mu_eta)
-                        LC_track_theta.append([theta])
-                        LC_phi_match.append([phi])
-                        LC_ndf.append(track.getNdf())
-                        LC_chi2.append(track.getChi2())
-                        LC_d0.append([d0])
-                        LC_z0.append([z0])
-                        LC_nhits.append([nhitz])
-                        LC_pt_res.append([ptres])
+                    imcp_mu_pt.append(mcp_tlv.Perp())
+                    imcp_mu_eta.append(mcp_tlv.Eta())
+                    imcp_mu_phi.append(mcp_tlv.Phi())
+                    n_mcp_mu += 1
+                    # print("Truth pt, eta, phi:", mcp_tlv.Perp(), mcp_tlv.Eta(), mcp_tlv.Phi())
 
-                        pixel_nhit = 0
-                        for hit in track.getTrackerHits():
-                        # now decode hits
-                            encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
-                            decoder = pyLCIO.UTIL.BitField64(encoding)
-                            cellID = int(hit.getCellID0())
-                            decoder.setValue(cellID)
-                            detector = decoder["system"].value()
-                            if detector == 1 or detector == 2:
-                                pixel_nhit += 1
-                        LC_pixel_nhits.append([pixel_nhit])
-                        num_matched_tracks += 1
-                        if len(tracks) > 1:
-                            print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
-                        # print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
-                                                
+                    if (mcp_tlv.Perp() > 0.5) & (mcp_tlv.Perp() <= 1000): # Remove ultra-low pt tracks    
+                        tracks = relation.getRelatedToObjects(mcp)
+                        for track in tracks:
+                            Bfield = 5 #T, 3.57 for legacy
+                            theta = np.pi/2- np.arctan(track.getTanLambda())
+                            phi = track.getPhi()
+                            eta = -np.log(np.tan(theta/2))
+                            pt  = 0.3 * Bfield / fabs(track.getOmega() * 1000.)
+                            track_tlv = ROOT.TLorentzVector()
+                            track_tlv.SetPtEtaPhiE(pt, eta, phi, 0)
+                            dr = mcp_tlv.DeltaR(track_tlv)
+                            nhitz = track.getTrackerHits().size()
+                            ptres = (mcp_tlv.Perp() - pt) / mcp_tlv.Perp()
+                            d0 = track.getD0()
+                            z0 = track.getZ0()
+                            LC_pt_match.append(imcp_mu_pt)
+                            LC_track_pt.append([pt])
+                            LC_track_eta.append([eta])
+                            LC_eta_match.append(imcp_mu_eta)
+                            LC_track_theta.append([theta])
+                            LC_phi_match.append([phi])
+                            LC_ndf.append([track.getNdf()])
+                            LC_chi2.append([track.getChi2()])
+                            LC_d0.append([d0])
+                            LC_z0.append([z0])
+                            LC_nhits.append([nhitz])
+                            LC_pt_res.append([ptres])
 
-                # For events in which a PFO mu was reconstructed, fill histograms that will
-                # be used for efficiency. Both numerator and denominator must be filled with truth values!
-                # Also fill resolution histograms
-                if has_pfo_mu:
-                    hists["mcp_mu_match_pt"].Fill(mcp_tlv.Perp())
-                    hists["mcp_mu_match_eta"].Fill(mcp_tlv.Eta())
-                    hists["mcp_mu_match_phi"].Fill(mcp_tlv.Phi())
+                            pixel_nhit = 0
+                            for hit in track.getTrackerHits():
+                            # now decode hits
+                                encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
+                                decoder = pyLCIO.UTIL.BitField64(encoding)
+                                cellID = int(hit.getCellID0())
+                                decoder.setValue(cellID)
+                                detector = decoder["system"].value()
+                                if detector == 1 or detector == 2:
+                                    pixel_nhit += 1
+                            LC_pixel_nhits.append([pixel_nhit])
+                            num_matched_tracks += 1
+                            if len(tracks) > 1:
+                                print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
+                            # print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
+                                                    
+                    # For events in which a PFO mu was reconstructed, fill histograms that will
+                    # be used for efficiency. Both numerator and denominator must be filled with truth values!
+                    # Also fill resolution histograms
+                    if has_pfo_mu:
+                        hists["mcp_mu_match_pt"].Fill(mcp_tlv.Perp())
+                        hists["mcp_mu_match_eta"].Fill(mcp_tlv.Eta())
+                        hists["mcp_mu_match_phi"].Fill(mcp_tlv.Phi())
 
-                    imcp_mu_match_pt = []
-                    imcp_mu_match_eta = []
-                    imcp_mu_match_phi = []
+                        imcp_mu_match_pt = []
+                        imcp_mu_match_eta = []
+                        imcp_mu_match_phi = []
 
-                    id_mu_dpt = []
-                    id_mu_drelpt = []
-                    id_mu_deta = []
-                    id_mu_dphi = []
-                    ih2d_relpt = []
+                        id_mu_dpt = []
+                        id_mu_drelpt = []
+                        id_mu_deta = []
+                        id_mu_dphi = []
+                        ih2d_relpt = []
 
-                    imcp_mu_match_pt.append(mcp_tlv.Perp())
-                    imcp_mu_match_eta.append(mcp_tlv.Eta())
-                    imcp_mu_match_phi.append(mcp_tlv.Phi())
+                        imcp_mu_match_pt.append(mcp_tlv.Perp())
+                        imcp_mu_match_eta.append(mcp_tlv.Eta())
+                        imcp_mu_match_phi.append(mcp_tlv.Phi())
 
-                    hists["d_mu_dpt"].Fill(my_pfo_mu.Perp() - mcp_tlv.Perp())
-                    hists["d_mu_drelpt"].Fill((my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
-                    hists["d_mu_deta"].Fill(my_pfo_mu.Eta() - mcp_tlv.Eta())
-                    hists["d_mu_dphi"].Fill(my_pfo_mu.Phi() - mcp_tlv.Phi())
-                    h_2d_relpt.Fill(mcp_tlv.Perp(), (my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
+                        hists["d_mu_dpt"].Fill(my_pfo_mu.Perp() - mcp_tlv.Perp())
+                        hists["d_mu_drelpt"].Fill((my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
+                        hists["d_mu_deta"].Fill(my_pfo_mu.Eta() - mcp_tlv.Eta())
+                        hists["d_mu_dphi"].Fill(my_pfo_mu.Phi() - mcp_tlv.Phi())
+                        h_2d_relpt.Fill(mcp_tlv.Perp(), (my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
 
-                    id_mu_dpt.append(my_pfo_mu.Perp() - mcp_tlv.Perp())
-                    id_mu_drelpt.append((my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
-                    id_mu_deta.append(my_pfo_mu.Eta() - mcp_tlv.Eta())
-                    id_mu_dphi.append(my_pfo_mu.Phi() - mcp_tlv.Phi())
-                    ih2d_relpt.append([mcp_tlv.Perp(), (my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp()])
+                        id_mu_dpt.append(my_pfo_mu.Perp() - mcp_tlv.Perp())
+                        id_mu_drelpt.append((my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp())
+                        id_mu_deta.append(my_pfo_mu.Eta() - mcp_tlv.Eta())
+                        id_mu_dphi.append(my_pfo_mu.Phi() - mcp_tlv.Phi())
+                        ih2d_relpt.append([mcp_tlv.Perp(), (my_pfo_mu.Perp() - mcp_tlv.Perp())/mcp_tlv.Perp()])
 
         # Loop over the track objects and fill histograms for D0, Z0, and hit counts
         counter = 0
@@ -379,6 +425,30 @@ for f in fnames:
             dr = mcp_tlv.DeltaR(track_tlv)
             nhitz = track.getTrackerHits().size()
             # print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
+
+            # Fake tracks
+            if len(relation.getRelatedFromObjects(track)) < 1:
+                ifake_pt.append(pt)
+                ifake_theta.append(theta)
+                ifake_eta.append(eta)
+                ifake_phi.append(phi)
+                ifake_d0.append(track.getD0())
+                ifake_z0.append(track.getZ0())
+                ifake_ndf.append(track.getNdf())
+                ifake_chi2.append(track.getChi2())
+                ifake_nhits.append(nhitz)
+                fake_pixel_nhit = 0
+                for hit in track.getTrackerHits():
+                    # now decode hits
+                        encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
+                        decoder = pyLCIO.UTIL.BitField64(encoding)
+                        cellID = int(hit.getCellID0())
+                        decoder.setValue(cellID)
+                        detector = decoder["system"].value()
+                        if detector == 1 or detector == 2:
+                            fake_pixel_nhit += 1
+                num_fake_tracks += 1
+
             min_dr = 0.005
             if dr < min_dr: # Do dR check first, then do nhits check
                 if nhitz > max_hits:
@@ -509,6 +579,16 @@ for f in fnames:
             d_mu_deta.append(id_mu_deta)
             d_mu_dphi.append(id_mu_dphi)
             h2d_relpt.append(ih2d_relpt)
+        fake_pt.append(ifake_pt)
+        fake_theta.append(ifake_theta)
+        fake_eta.append(ifake_eta)
+        fake_phi.append(ifake_phi)
+        fake_d0.append(ifake_d0)
+        fake_z0.append(ifake_z0)
+        fake_ndf.append(ifake_ndf)
+        fake_chi2.append(ifake_chi2)
+        fake_nhits.append(ifake_nhits)
+        fake_pixel_nhits.append(fake_pixel_nhit)
     reader.close()
 
 # ############## MANIPULATE, PRETTIFY, AND SAVE HISTOGRAMS #############################
@@ -522,7 +602,8 @@ print("\t%i PFOs"%hists["pfo_pt"].GetEntries())
 print("\t%i mu PFOs"%hists["pfo_mu_pt"].GetEntries())
 print('\t%i matched muon tracks'%(num_matched_tracks))
 print('\t%i duplicates eliminated'%num_dupes)
-
+print('\t%i hard radiations discarded'%hard_rad_discard)
+print('\t%i fake tracks'%num_fake_tracks)
 
 
 # Make a list of all the data you want to save
@@ -530,22 +611,25 @@ data_list = {}
 data_list["mcp_pt"] = mcp_pt
 data_list["mcp_eta"] = mcp_eta
 data_list["mcp_phi"] = mcp_phi
-data_list["pfo_pt"] = pfo_pt
-data_list["pfo_eta"] = pfo_eta
-data_list["pfo_phi"] = pfo_phi
-data_list["pfo_mu_pt"] = pfo_mu_pt
-data_list["pfo_mu_eta"] = pfo_mu_eta
-data_list["pfo_mu_phi"] = pfo_mu_phi
 data_list["mcp_mu_pt"] = mcp_mu_pt
 data_list["mcp_mu_eta"] = mcp_mu_eta
 data_list["mcp_mu_phi"] = mcp_mu_phi
-data_list["mcp_mu_match_pt"] = mcp_mu_match_pt
-data_list["mcp_mu_match_eta"] = mcp_mu_match_eta
-data_list["mcp_mu_match_phi"] = mcp_mu_match_phi
-data_list["d_mu_dpt"] = d_mu_dpt
-data_list["d_mu_drelpt"] = d_mu_drelpt
-data_list["d_mu_dphi"] = d_mu_dphi
-data_list["d_mu_deta"] = d_mu_deta
+
+# data_list["pfo_pt"] = pfo_pt
+# data_list["pfo_eta"] = pfo_eta
+# data_list["pfo_phi"] = pfo_phi
+# data_list["pfo_mu_pt"] = pfo_mu_pt
+# data_list["pfo_mu_eta"] = pfo_mu_eta
+# data_list["pfo_mu_phi"] = pfo_mu_phi
+
+# data_list["mcp_mu_match_pt"] = mcp_mu_match_pt
+# data_list["mcp_mu_match_eta"] = mcp_mu_match_eta
+# data_list["mcp_mu_match_phi"] = mcp_mu_match_phi
+# data_list["d_mu_dpt"] = d_mu_dpt
+# data_list["d_mu_drelpt"] = d_mu_drelpt
+# data_list["d_mu_dphi"] = d_mu_dphi
+# data_list["d_mu_deta"] = d_mu_deta
+
 data_list["d0_res"] = d0_res
 data_list["z0_res"] = z0_res
 data_list["nhits"] = nhits
@@ -566,6 +650,9 @@ data_list["theta_match"] = theta_match
 data_list["phi_match"] = phi_match
 data_list["ndf"] = ndf
 data_list["chi2"] = chi2
+data_list["d0_res_match"] = d0_res_match
+data_list["z0_res_match"] = z0_res_match
+
 data_list["LC_pt_match"] = LC_pt_match
 data_list["LC_track_pt"] = LC_track_pt
 data_list["LC_track_eta"] = LC_track_eta
@@ -579,8 +666,18 @@ data_list["LC_z0"] = LC_z0
 data_list["LC_nhits"] = LC_nhits
 data_list["LC_pixel_nhits"] = LC_pixel_nhits
 data_list["LC_pt_res"] = LC_pt_res
-data_list["d0_res_match"] = d0_res_match
-data_list["z0_res_match"] = z0_res_match
+
+data_list["fake_pt"] = fake_pt
+data_list["fake_theta"] = fake_theta
+data_list["fake_eta"] = fake_eta
+data_list["fake_phi"] = fake_phi
+data_list["fake_d0"] = fake_d0
+data_list["fake_z0"] = fake_z0
+data_list["fake_ndf"] = fake_ndf
+data_list["fake_chi2"] = fake_chi2
+data_list["fake_nhits"] = fake_nhits
+data_list["fake_pixel_nhits"] = fake_pixel_nhits
+
 data_list["h_2d_relpt"] = h2d_relpt
 
 # After the loop is finished, save the data_list to a .json file
