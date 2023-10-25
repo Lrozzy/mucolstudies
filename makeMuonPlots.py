@@ -12,7 +12,7 @@ import numpy as np
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = -1
+max_events = -1000
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
@@ -90,7 +90,7 @@ def check_hard_radiation(mcp, fractional_threshold):
     had_hard_rad = False
     daughters = mcp.getDaughters() 
     for d in daughters:
-        if d.getPDG() == 22:
+        if d.getPDG() == 22:        
             if d.getEnergy() > fractional_threshold*mcp.getEnergy():
                 had_hard_rad = True   
     return had_hard_rad
@@ -128,6 +128,8 @@ z0_res_match = [] #z0_res_match = z0 resolution for matched muons
 
 nhits = []
 pixel_nhits = []
+inner_nhits = []
+outer_nhits = []
 pt_res_hits = []
 
 d0_res_vs_pt = [] 
@@ -161,6 +163,8 @@ LC_d0 = []
 LC_z0 = []
 LC_nhits = []
 LC_pixel_nhits = []
+LC_inner_nhits = []
+LC_outer_nhits = []
 LC_pt_res = [] 
 
 # Fake Tracks
@@ -174,6 +178,8 @@ fake_ndf = []
 fake_chi2 = []
 fake_nhits = []
 fake_pixel_nhits = []
+fake_inner_nhits = []
+fake_outer_nhits = []
 
 h2d_relpt = [] #pfo muon pt resolution vs pt
 
@@ -311,7 +317,7 @@ for f in fnames:
 
             if abs(mcp.getPDG())==13 and mcp.getGeneratorStatus()==1:
                 # Check if the muon radiated significant energy
-                hard_rad = check_hard_radiation(mcp, 0.01)
+                hard_rad = check_hard_radiation(mcp, 0.00)
                 
                 if hard_rad:
                     #print("radiated significant energy, discarding")
@@ -360,7 +366,9 @@ for f in fnames:
                             LC_nhits.append([nhitz])
                             LC_pt_res.append([ptres])
 
-                            pixel_nhit = 0
+                            LC_pixel_nhit = 0
+                            LC_inner_nhit = 0
+                            LC_outer_nhit = 0
                             for hit in track.getTrackerHits():
                             # now decode hits
                                 encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
@@ -369,8 +377,14 @@ for f in fnames:
                                 decoder.setValue(cellID)
                                 detector = decoder["system"].value()
                                 if detector == 1 or detector == 2:
-                                    pixel_nhit += 1
-                            LC_pixel_nhits.append([pixel_nhit])
+                                    LC_pixel_nhit += 1
+                                if detector == 3 or detector == 4:
+                                    LC_inner_nhit += 1
+                                if detector == 5 or detector == 6:
+                                    LC_inner_nhit += 1
+                            LC_pixel_nhits.append([LC_pixel_nhit])
+                            LC_inner_nhits.append([LC_inner_nhit])
+                            LC_outer_nhits.append([LC_outer_nhit])
                             num_matched_tracks += 1
                             if len(tracks) > 1:
                                 print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
@@ -438,6 +452,8 @@ for f in fnames:
                 ifake_chi2.append(track.getChi2())
                 ifake_nhits.append(nhitz)
                 fake_pixel_nhit = 0
+                fake_inner_nhit = 0
+                fake_outer_nhit = 0
                 for hit in track.getTrackerHits():
                     # now decode hits
                         encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
@@ -447,7 +463,13 @@ for f in fnames:
                         detector = decoder["system"].value()
                         if detector == 1 or detector == 2:
                             fake_pixel_nhit += 1
+                        if detector == 3 or detector == 4:
+                            fake_inner_nhit += 1
+                        if detector == 5 or detector == 6:
+                            fake_inner_nhit += 1
                 fake_pixel_nhits.append(fake_pixel_nhit)
+                fake_inner_nhits.append(fake_inner_nhit)
+                fake_outer_nhits.append(fake_outer_nhit)
                 num_fake_tracks += 1
 
             min_dr = 0.005
@@ -515,6 +537,8 @@ for f in fnames:
                         textfile.write("pt_res: " + str(ptres) + "\n")
 
                 pixel_nhit = 0
+                inner_nhit = 0
+                outer_nhit = 0
                 for hit in track.getTrackerHits():
                     # now decode hits
                         encoding = hit_collections[0].getParameters().getStringVal(pyLCIO.EVENT.LCIO.CellIDEncoding)
@@ -524,6 +548,10 @@ for f in fnames:
                         detector = decoder["system"].value()
                         if detector == 1 or detector == 2:
                             pixel_nhit += 1
+                        if detector == 3 or detector == 4:
+                            inner_nhit += 1
+                        if detector == 5 or detector == 6:
+                            inner_nhit += 1
                         
         #print("End of tracks")
         # This is here to check that we never reconstruct multiple muons
@@ -541,6 +569,8 @@ for f in fnames:
             z0_res.append(iz0_res)
             nhits.append(inhits)
             pixel_nhits.append([pixel_nhit])
+            inner_nhits.append([inner_nhit])
+            outer_nhits.append([outer_nhit])
             #pt_res_hits.append(ipt_res_hits)
             d0_res_vs_pt.append(id0_res_vs_pt)
             d0_res_vs_eta.append(id0_res_vs_eta)
@@ -562,24 +592,25 @@ for f in fnames:
         mcp_pt.append(imcp_pt)
         mcp_eta.append(imcp_eta)
         mcp_phi.append(imcp_phi)
-        mcp_mu_pt.append(imcp_mu_pt)
-        mcp_mu_eta.append(imcp_mu_eta)
-        mcp_mu_phi.append(imcp_mu_phi)
+        if hard_rad == False:
+            mcp_mu_pt.append(imcp_mu_pt)
+            mcp_mu_eta.append(imcp_mu_eta)
+            mcp_mu_phi.append(imcp_mu_phi)
+            if has_pfo_mu:    
+                mcp_mu_match_pt.append(imcp_mu_match_pt)
+                mcp_mu_match_eta.append(imcp_mu_match_eta)
+                mcp_mu_match_phi.append(imcp_mu_match_phi)
+                d_mu_dpt.append(id_mu_dpt)
+                d_mu_drelpt.append(id_mu_drelpt)
+                d_mu_deta.append(id_mu_deta)
+                d_mu_dphi.append(id_mu_dphi)
+                h2d_relpt.append(ih2d_relpt)
         pfo_pt.append(ipfo_pt)
         pfo_eta.append(ipfo_eta)
         pfo_phi.append(ipfo_phi)
         pfo_mu_pt.append(ipfo_mu_pt)
         pfo_mu_eta.append(ipfo_mu_eta)
         pfo_mu_phi.append(ipfo_mu_phi)
-        if has_pfo_mu:    
-            mcp_mu_match_pt.append(imcp_mu_match_pt)
-            mcp_mu_match_eta.append(imcp_mu_match_eta)
-            mcp_mu_match_phi.append(imcp_mu_match_phi)
-            d_mu_dpt.append(id_mu_dpt)
-            d_mu_drelpt.append(id_mu_drelpt)
-            d_mu_deta.append(id_mu_deta)
-            d_mu_dphi.append(id_mu_dphi)
-            h2d_relpt.append(ih2d_relpt)
         if len(ifake_pt) > 0:
             fake_pt.append(ifake_pt)
             fake_theta.append(ifake_theta)
@@ -637,6 +668,8 @@ data_list["d0_res"] = d0_res
 data_list["z0_res"] = z0_res
 data_list["nhits"] = nhits
 data_list["pixel_nhits"] = pixel_nhits
+data_list["inner_nhits"] = inner_nhits
+data_list["outer_nhits"] = outer_nhits
 data_list["pt_res_hits"] = pt_res_hits
 data_list["d0_res_vs_pt"] = d0_res_vs_pt
 data_list["d0_res_vs_eta"] = d0_res_vs_eta
@@ -668,6 +701,8 @@ data_list["LC_d0"] = LC_d0
 data_list["LC_z0"] = LC_z0
 data_list["LC_nhits"] = LC_nhits
 data_list["LC_pixel_nhits"] = LC_pixel_nhits
+data_list["LC_inner_nhits"] = LC_inner_nhits
+data_list["LC_outer_nhits"] = LC_outer_nhits
 data_list["LC_pt_res"] = LC_pt_res
 
 data_list["fake_pt"] = fake_pt
@@ -680,6 +715,8 @@ data_list["fake_ndf"] = fake_ndf
 data_list["fake_chi2"] = fake_chi2
 data_list["fake_nhits"] = fake_nhits
 data_list["fake_pixel_nhits"] = fake_pixel_nhits
+data_list["fake_inner_nhits"] = fake_inner_nhits
+data_list["fake_outer_nhits"] = fake_outer_nhits
 
 data_list["h_2d_relpt"] = h2d_relpt
 
