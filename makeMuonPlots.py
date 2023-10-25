@@ -381,7 +381,7 @@ for f in fnames:
                                 if detector == 3 or detector == 4:
                                     LC_inner_nhit += 1
                                 if detector == 5 or detector == 6:
-                                    LC_inner_nhit += 1
+                                    LC_outer_nhit += 1
                             LC_pixel_nhits.append([LC_pixel_nhit])
                             LC_inner_nhits.append([LC_inner_nhit])
                             LC_outer_nhits.append([LC_outer_nhit])
@@ -466,7 +466,7 @@ for f in fnames:
                         if detector == 3 or detector == 4:
                             fake_inner_nhit += 1
                         if detector == 5 or detector == 6:
-                            fake_inner_nhit += 1
+                            fake_outer_nhit += 1
                 fake_pixel_nhits.append(fake_pixel_nhit)
                 fake_inner_nhits.append(fake_inner_nhit)
                 fake_outer_nhits.append(fake_outer_nhit)
@@ -551,7 +551,7 @@ for f in fnames:
                         if detector == 3 or detector == 4:
                             inner_nhit += 1
                         if detector == 5 or detector == 6:
-                            inner_nhit += 1
+                            outer_nhit += 1
                         
         #print("End of tracks")
         # This is here to check that we never reconstruct multiple muons
