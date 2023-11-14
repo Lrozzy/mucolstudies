@@ -12,7 +12,7 @@ import numpy as np
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = -1000
+max_events = 2000
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
@@ -90,7 +90,7 @@ def check_hard_radiation(mcp, fractional_threshold):
     had_hard_rad = False
     daughters = mcp.getDaughters() 
     for d in daughters:
-        if d.getPDG() == 22:        
+        if d.getPDG() == 22 or d.getPDG() == 23 or d.getPDG() == 24:        
             if d.getEnergy() > fractional_threshold*mcp.getEnergy():
                 had_hard_rad = True   
     return had_hard_rad
@@ -166,6 +166,7 @@ LC_pixel_nhits = []
 LC_inner_nhits = []
 LC_outer_nhits = []
 LC_pt_res = [] 
+LC_dr = []
 
 # Fake Tracks
 fake_pt = []
@@ -185,6 +186,9 @@ h2d_relpt = [] #pfo muon pt resolution vs pt
 
 with open("bad_res.txt", "w") as textfile:
     pass
+with open("no_inner_hits.txt", "w") as textfile:
+    pass
+no_inner_hits = 0
 i = 0
 num_matched_tracks = 0
 num_dupes = 0
@@ -199,9 +203,11 @@ for f in fnames:
     if f == "/data/fmeloni/DataMuC_MuColl10_v0A/reco/merged/muonGun_pT_1000_5000.slcio":
         continue
     if max_events > 0 and i >= max_events: break
+    #if no_inner_hits > np.abs(max_events): break
     reader.open(f)
     for event in reader: 
         if max_events > 0 and i >= max_events: break
+        #if no_inner_hits > np.abs(max_events): break
         if i%100 == 0: print("Processing event %i."%i)
 
         # Get the collections we care about
@@ -210,7 +216,7 @@ for f in fnames:
 
         mcpCollection = event.getCollection("MCParticle")
         pfoCollection = event.getCollection("PandoraPFOs")
-        trackCollection = event.getCollection("SiTracks_Refitted")
+        trackCollection = event.getCollection("SiTracks")
 
         hit_collections = []
         IBTrackerHits = event.getCollection('IBTrackerHits')
@@ -319,9 +325,11 @@ for f in fnames:
                 # Check if the muon radiated significant energy
                 hard_rad = check_hard_radiation(mcp, 0.00)
                 
-                if hard_rad:
+                if hard_rad == False:
                     #print("radiated significant energy, discarding")
                     hard_rad_discard += 1
+                    # for d in mcp.getDaughters():
+                    #     print(d.getPDG())
 
                 else:
                     hists["mcp_mu_pt"].Fill(mcp_tlv.Perp())
@@ -365,6 +373,7 @@ for f in fnames:
                             LC_z0.append([z0])
                             LC_nhits.append([nhitz])
                             LC_pt_res.append([ptres])
+                            LC_dr.append([dr])
 
                             LC_pixel_nhit = 0
                             LC_inner_nhit = 0
@@ -386,9 +395,14 @@ for f in fnames:
                             LC_inner_nhits.append([LC_inner_nhit])
                             LC_outer_nhits.append([LC_outer_nhit])
                             num_matched_tracks += 1
-                            if len(tracks) > 1:
-                                print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
+                            # if LC_outer_nhit == 0:
+                            #     no_inner_hits += 1
+                            #     with open("no_inner_hits.txt", "a") as textfile:
+                            #         textfile.write("Filename: " + str(f) + "\n")
+                            #         textfile.write("Event: " + str(event.getEventNumber()) + "\n")
+                            #         textfile.write("Truth theta: " + str(mcp_tlv.Theta()) + "\n")
                             # print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
+                            print("Nhits (total, pixel, inner, outer):", nhitz, LC_pixel_nhit, LC_inner_nhit, LC_outer_nhit)
                                                     
                     # For events in which a PFO mu was reconstructed, fill histograms that will
                     # be used for efficiency. Both numerator and denominator must be filled with truth values!
@@ -482,7 +496,7 @@ for f in fnames:
                     num_dupes += 1
                     # print("More than one track in event! # of dupes:", num_dupes)
         # print("# of reco for event (after dr matching):", counter)
-        if best_track is not None:
+        if best_track is not None and hard_rad == True:
             track = best_track
             d0 = track.getD0()
             z0 = track.getZ0()
@@ -557,71 +571,71 @@ for f in fnames:
         # This is here to check that we never reconstruct multiple muons
         # If we did, we'd have to match the correct muon to the MCP object to do eff/res plots
         # But since we don't, we can skip that step
-        if n_pfo_mu > 1: print(n_pfo_mu)
-        hists["mcp_n"].Fill(len(mcpCollection))
-        hists["pfo_n"].Fill(len(pfoCollection))
-        hists["mcp_mu_n"].Fill(n_mcp_mu)
-        hists["pfo_mu_n"].Fill(n_pfo_mu)
-        hists["mcp_mu_match_n"].Fill(n_pfo_mu)
+        # if n_pfo_mu > 1: print(n_pfo_mu)
+        # hists["mcp_n"].Fill(len(mcpCollection))
+        # hists["pfo_n"].Fill(len(pfoCollection))
+        # hists["mcp_mu_n"].Fill(n_mcp_mu)
+        # hists["pfo_mu_n"].Fill(n_pfo_mu)
+        # hists["mcp_mu_match_n"].Fill(n_pfo_mu)
         i+=1
-        if len(id0_res_vs_pt) > 0:
-            d0_res.append(id0_res)
-            z0_res.append(iz0_res)
-            nhits.append(inhits)
-            pixel_nhits.append([pixel_nhit])
-            inner_nhits.append([inner_nhit])
-            outer_nhits.append([outer_nhit])
-            #pt_res_hits.append(ipt_res_hits)
-            d0_res_vs_pt.append(id0_res_vs_pt)
-            d0_res_vs_eta.append(id0_res_vs_eta)
-            z0_res_vs_pt.append(iz0_res_vs_pt)
-            z0_res_vs_eta.append(iz0_res_vs_eta)
-            pt_res_vs_eta.append(ipt_res_vs_eta)
-            pt_res_vs_pt.append(ipt_res_vs_pt)
-            pt_res.append(ipt_res)
-            pt_match.append(ipt_match)
-            track_pt.append(itrack_pt)
-            track_eta.append(itrack_eta)
-            eta_match.append(ieta_match)
-            theta_match.append(itheta_match)
-            phi_match.append(iphi_match)
-            ndf.append(indf)
-            chi2.append(ichi2)
-            d0_res_match.append(id0_res_match)
-            z0_res_match.append(iz0_res_match)
-        mcp_pt.append(imcp_pt)
-        mcp_eta.append(imcp_eta)
-        mcp_phi.append(imcp_phi)
-        if hard_rad == False:
-            mcp_mu_pt.append(imcp_mu_pt)
-            mcp_mu_eta.append(imcp_mu_eta)
-            mcp_mu_phi.append(imcp_mu_phi)
-            if has_pfo_mu:    
-                mcp_mu_match_pt.append(imcp_mu_match_pt)
-                mcp_mu_match_eta.append(imcp_mu_match_eta)
-                mcp_mu_match_phi.append(imcp_mu_match_phi)
-                d_mu_dpt.append(id_mu_dpt)
-                d_mu_drelpt.append(id_mu_drelpt)
-                d_mu_deta.append(id_mu_deta)
-                d_mu_dphi.append(id_mu_dphi)
-                h2d_relpt.append(ih2d_relpt)
-        pfo_pt.append(ipfo_pt)
-        pfo_eta.append(ipfo_eta)
-        pfo_phi.append(ipfo_phi)
-        pfo_mu_pt.append(ipfo_mu_pt)
-        pfo_mu_eta.append(ipfo_mu_eta)
-        pfo_mu_phi.append(ipfo_mu_phi)
-        if len(ifake_pt) > 0:
-            fake_pt.append(ifake_pt)
-            fake_theta.append(ifake_theta)
-            fake_eta.append(ifake_eta)
-            fake_phi.append(ifake_phi)
-            fake_d0.append(ifake_d0)
-            fake_z0.append(ifake_z0)
-            fake_ndf.append(ifake_ndf)
-            fake_chi2.append(ifake_chi2)
-            fake_nhits.append(ifake_nhits)
-            # print(fake_pt)
+        # if len(id0_res_vs_pt) > 0:
+        #     d0_res.append(id0_res)
+        #     z0_res.append(iz0_res)
+        #     nhits.append(inhits)
+        #     pixel_nhits.append([pixel_nhit])
+        #     inner_nhits.append([inner_nhit])
+        #     outer_nhits.append([outer_nhit])
+        #     #pt_res_hits.append(ipt_res_hits)
+        #     d0_res_vs_pt.append(id0_res_vs_pt)
+        #     d0_res_vs_eta.append(id0_res_vs_eta)
+        #     z0_res_vs_pt.append(iz0_res_vs_pt)
+        #     z0_res_vs_eta.append(iz0_res_vs_eta)
+        #     pt_res_vs_eta.append(ipt_res_vs_eta)
+        #     pt_res_vs_pt.append(ipt_res_vs_pt)
+        #     pt_res.append(ipt_res)
+        #     pt_match.append(ipt_match)
+        #     track_pt.append(itrack_pt)
+        #     track_eta.append(itrack_eta)
+        #     eta_match.append(ieta_match)
+        #     theta_match.append(itheta_match)
+        #     phi_match.append(iphi_match)
+        #     ndf.append(indf)
+        #     chi2.append(ichi2)
+        #     d0_res_match.append(id0_res_match)
+        #     z0_res_match.append(iz0_res_match)
+        # mcp_pt.append(imcp_pt)
+        # mcp_eta.append(imcp_eta)
+        # mcp_phi.append(imcp_phi)
+        # if hard_rad == False:
+        #     mcp_mu_pt.append(imcp_mu_pt)
+        #     mcp_mu_eta.append(imcp_mu_eta)
+        #     mcp_mu_phi.append(imcp_mu_phi)
+        #     if has_pfo_mu:    
+        #         mcp_mu_match_pt.append(imcp_mu_match_pt)
+        #         mcp_mu_match_eta.append(imcp_mu_match_eta)
+        #         mcp_mu_match_phi.append(imcp_mu_match_phi)
+        #         d_mu_dpt.append(id_mu_dpt)
+        #         d_mu_drelpt.append(id_mu_drelpt)
+        #         d_mu_deta.append(id_mu_deta)
+        #         d_mu_dphi.append(id_mu_dphi)
+        #         h2d_relpt.append(ih2d_relpt)
+        # pfo_pt.append(ipfo_pt)
+        # pfo_eta.append(ipfo_eta)
+        # pfo_phi.append(ipfo_phi)
+        # pfo_mu_pt.append(ipfo_mu_pt)
+        # pfo_mu_eta.append(ipfo_mu_eta)
+        # pfo_mu_phi.append(ipfo_mu_phi)
+        # if len(ifake_pt) > 0:
+        #     fake_pt.append(ifake_pt)
+        #     fake_theta.append(ifake_theta)
+        #     fake_eta.append(ifake_eta)
+        #     fake_phi.append(ifake_phi)
+        #     fake_d0.append(ifake_d0)
+        #     fake_z0.append(ifake_z0)
+        #     fake_ndf.append(ifake_ndf)
+        #     fake_chi2.append(ifake_chi2)
+        #     fake_nhits.append(ifake_nhits)
+        #     # print(fake_pt)
     reader.close()
 
 # ############## MANIPULATE, PRETTIFY, AND SAVE HISTOGRAMS #############################
@@ -704,6 +718,7 @@ data_list["LC_pixel_nhits"] = LC_pixel_nhits
 data_list["LC_inner_nhits"] = LC_inner_nhits
 data_list["LC_outer_nhits"] = LC_outer_nhits
 data_list["LC_pt_res"] = LC_pt_res
+data_list["LC_dr"] = LC_dr
 
 data_list["fake_pt"] = fake_pt
 data_list["fake_theta"] = fake_theta
@@ -721,7 +736,7 @@ data_list["fake_outer_nhits"] = fake_outer_nhits
 data_list["h_2d_relpt"] = h2d_relpt
 
 # After the loop is finished, save the data_list to a .json file
-output_json = "v0_noBIB_merged.json"
+output_json = "hard_rad.json"
 with open(output_json, 'w') as fp:
     json.dump(data_list, fp)
 
