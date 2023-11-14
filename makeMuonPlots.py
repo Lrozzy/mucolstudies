@@ -12,7 +12,7 @@ import numpy as np
 ROOT.gROOT.SetBatch()
 
 # Set up some options
-max_events = 2000
+max_events = 1000
 
 # Gather input files
 # Note: these are using the path convention from the singularity command in the MuCol tutorial (see README)
@@ -325,7 +325,7 @@ for f in fnames:
                 # Check if the muon radiated significant energy
                 hard_rad = check_hard_radiation(mcp, 0.00)
                 
-                if hard_rad == False:
+                if hard_rad:
                     #print("radiated significant energy, discarding")
                     hard_rad_discard += 1
                     # for d in mcp.getDaughters():
@@ -401,8 +401,9 @@ for f in fnames:
                             #         textfile.write("Filename: " + str(f) + "\n")
                             #         textfile.write("Event: " + str(event.getEventNumber()) + "\n")
                             #         textfile.write("Truth theta: " + str(mcp_tlv.Theta()) + "\n")
+
                             # print("Reco pt, eta, phi, nhits, dr:", pt, eta, phi, nhitz, dr)
-                            print("Nhits (total, pixel, inner, outer):", nhitz, LC_pixel_nhit, LC_inner_nhit, LC_outer_nhit)
+                            # print("Nhits (total, pixel, inner, outer):", nhitz, LC_pixel_nhit, LC_inner_nhit, LC_outer_nhit)
                                                     
                     # For events in which a PFO mu was reconstructed, fill histograms that will
                     # be used for efficiency. Both numerator and denominator must be filled with truth values!
@@ -496,7 +497,7 @@ for f in fnames:
                     num_dupes += 1
                     # print("More than one track in event! # of dupes:", num_dupes)
         # print("# of reco for event (after dr matching):", counter)
-        if best_track is not None and hard_rad == True:
+        if best_track is not None:
             track = best_track
             d0 = track.getD0()
             z0 = track.getZ0()
@@ -571,70 +572,70 @@ for f in fnames:
         # This is here to check that we never reconstruct multiple muons
         # If we did, we'd have to match the correct muon to the MCP object to do eff/res plots
         # But since we don't, we can skip that step
-        # if n_pfo_mu > 1: print(n_pfo_mu)
-        # hists["mcp_n"].Fill(len(mcpCollection))
-        # hists["pfo_n"].Fill(len(pfoCollection))
-        # hists["mcp_mu_n"].Fill(n_mcp_mu)
-        # hists["pfo_mu_n"].Fill(n_pfo_mu)
-        # hists["mcp_mu_match_n"].Fill(n_pfo_mu)
+        if n_pfo_mu > 1: print(n_pfo_mu)
+        hists["mcp_n"].Fill(len(mcpCollection))
+        hists["pfo_n"].Fill(len(pfoCollection))
+        hists["mcp_mu_n"].Fill(n_mcp_mu)
+        hists["pfo_mu_n"].Fill(n_pfo_mu)
+        hists["mcp_mu_match_n"].Fill(n_pfo_mu)
         i+=1
-        # if len(id0_res_vs_pt) > 0:
-        #     d0_res.append(id0_res)
-        #     z0_res.append(iz0_res)
-        #     nhits.append(inhits)
-        #     pixel_nhits.append([pixel_nhit])
-        #     inner_nhits.append([inner_nhit])
-        #     outer_nhits.append([outer_nhit])
-        #     #pt_res_hits.append(ipt_res_hits)
-        #     d0_res_vs_pt.append(id0_res_vs_pt)
-        #     d0_res_vs_eta.append(id0_res_vs_eta)
-        #     z0_res_vs_pt.append(iz0_res_vs_pt)
-        #     z0_res_vs_eta.append(iz0_res_vs_eta)
-        #     pt_res_vs_eta.append(ipt_res_vs_eta)
-        #     pt_res_vs_pt.append(ipt_res_vs_pt)
-        #     pt_res.append(ipt_res)
-        #     pt_match.append(ipt_match)
-        #     track_pt.append(itrack_pt)
-        #     track_eta.append(itrack_eta)
-        #     eta_match.append(ieta_match)
-        #     theta_match.append(itheta_match)
-        #     phi_match.append(iphi_match)
-        #     ndf.append(indf)
-        #     chi2.append(ichi2)
-        #     d0_res_match.append(id0_res_match)
-        #     z0_res_match.append(iz0_res_match)
-        # mcp_pt.append(imcp_pt)
-        # mcp_eta.append(imcp_eta)
-        # mcp_phi.append(imcp_phi)
-        # if hard_rad == False:
-        #     mcp_mu_pt.append(imcp_mu_pt)
-        #     mcp_mu_eta.append(imcp_mu_eta)
-        #     mcp_mu_phi.append(imcp_mu_phi)
-        #     if has_pfo_mu:    
-        #         mcp_mu_match_pt.append(imcp_mu_match_pt)
-        #         mcp_mu_match_eta.append(imcp_mu_match_eta)
-        #         mcp_mu_match_phi.append(imcp_mu_match_phi)
-        #         d_mu_dpt.append(id_mu_dpt)
-        #         d_mu_drelpt.append(id_mu_drelpt)
-        #         d_mu_deta.append(id_mu_deta)
-        #         d_mu_dphi.append(id_mu_dphi)
-        #         h2d_relpt.append(ih2d_relpt)
-        # pfo_pt.append(ipfo_pt)
-        # pfo_eta.append(ipfo_eta)
-        # pfo_phi.append(ipfo_phi)
-        # pfo_mu_pt.append(ipfo_mu_pt)
-        # pfo_mu_eta.append(ipfo_mu_eta)
-        # pfo_mu_phi.append(ipfo_mu_phi)
-        # if len(ifake_pt) > 0:
-        #     fake_pt.append(ifake_pt)
-        #     fake_theta.append(ifake_theta)
-        #     fake_eta.append(ifake_eta)
-        #     fake_phi.append(ifake_phi)
-        #     fake_d0.append(ifake_d0)
-        #     fake_z0.append(ifake_z0)
-        #     fake_ndf.append(ifake_ndf)
-        #     fake_chi2.append(ifake_chi2)
-        #     fake_nhits.append(ifake_nhits)
+        if len(id0_res_vs_pt) > 0:
+            d0_res.append(id0_res)
+            z0_res.append(iz0_res)
+            nhits.append(inhits)
+            pixel_nhits.append([pixel_nhit])
+            inner_nhits.append([inner_nhit])
+            outer_nhits.append([outer_nhit])
+            #pt_res_hits.append(ipt_res_hits)
+            d0_res_vs_pt.append(id0_res_vs_pt)
+            d0_res_vs_eta.append(id0_res_vs_eta)
+            z0_res_vs_pt.append(iz0_res_vs_pt)
+            z0_res_vs_eta.append(iz0_res_vs_eta)
+            pt_res_vs_eta.append(ipt_res_vs_eta)
+            pt_res_vs_pt.append(ipt_res_vs_pt)
+            pt_res.append(ipt_res)
+            pt_match.append(ipt_match)
+            track_pt.append(itrack_pt)
+            track_eta.append(itrack_eta)
+            eta_match.append(ieta_match)
+            theta_match.append(itheta_match)
+            phi_match.append(iphi_match)
+            ndf.append(indf)
+            chi2.append(ichi2)
+            d0_res_match.append(id0_res_match)
+            z0_res_match.append(iz0_res_match)
+        mcp_pt.append(imcp_pt)
+        mcp_eta.append(imcp_eta)
+        mcp_phi.append(imcp_phi)
+        if hard_rad == False:
+            mcp_mu_pt.append(imcp_mu_pt)
+            mcp_mu_eta.append(imcp_mu_eta)
+            mcp_mu_phi.append(imcp_mu_phi)
+            if has_pfo_mu:    
+                mcp_mu_match_pt.append(imcp_mu_match_pt)
+                mcp_mu_match_eta.append(imcp_mu_match_eta)
+                mcp_mu_match_phi.append(imcp_mu_match_phi)
+                d_mu_dpt.append(id_mu_dpt)
+                d_mu_drelpt.append(id_mu_drelpt)
+                d_mu_deta.append(id_mu_deta)
+                d_mu_dphi.append(id_mu_dphi)
+                h2d_relpt.append(ih2d_relpt)
+        pfo_pt.append(ipfo_pt)
+        pfo_eta.append(ipfo_eta)
+        pfo_phi.append(ipfo_phi)
+        pfo_mu_pt.append(ipfo_mu_pt)
+        pfo_mu_eta.append(ipfo_mu_eta)
+        pfo_mu_phi.append(ipfo_mu_phi)
+        if len(ifake_pt) > 0:
+            fake_pt.append(ifake_pt)
+            fake_theta.append(ifake_theta)
+            fake_eta.append(ifake_eta)
+            fake_phi.append(ifake_phi)
+            fake_d0.append(ifake_d0)
+            fake_z0.append(ifake_z0)
+            fake_ndf.append(ifake_ndf)
+            fake_chi2.append(ifake_chi2)
+            fake_nhits.append(ifake_nhits)
         #     # print(fake_pt)
     reader.close()
 
